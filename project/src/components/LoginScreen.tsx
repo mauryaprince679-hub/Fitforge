@@ -31,17 +31,23 @@ export default function LoginScreen() {
     }
 
     setLoading(true);
-    if (mode === 'login') {
-      const { error: err } = await signIn(email.trim(), password);
-      if (err) setError(err);
-    } else {
-      const { error: err } = await signUp(email.trim(), password, name.trim(), role);
-      if (err) setError(err);
+    try {
+      if (mode === 'login') {
+        const { error: err } = await signIn(email.trim(), password);
+        if (err) setError(err);
+      } else {
+        const { error: err } = await signUp(email.trim(), password, name.trim(), role);
+        if (err) setError(err);
+      }
+    } catch (err: any) {
+      setError(err?.message || 'An unexpected error occurred.');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
-  const fillDemo = (demoEmail: string) => {
+  const fillDemo = (e: React.MouseEvent, demoEmail: string) => {
+    e.preventDefault();
     setEmail(demoEmail);
     setPassword('demo1234');
     setMode('login');
@@ -66,12 +72,14 @@ export default function LoginScreen() {
           {/* Mode tabs */}
           <div className="flex gap-1 bg-slate-800/50 p-1 rounded-xl mb-6">
             <button
+              type="button"
               onClick={() => { setMode('login'); setError(null); }}
               className={`flex-1 py-2.5 rounded-lg text-sm font-semibold transition-all ${mode === 'login' ? 'bg-teal-500 text-white' : 'text-slate-400 hover:text-slate-200'}`}
             >
               Sign In
             </button>
             <button
+              type="button"
               onClick={() => { setMode('signup'); setError(null); }}
               className={`flex-1 py-2.5 rounded-lg text-sm font-semibold transition-all ${mode === 'signup' ? 'bg-teal-500 text-white' : 'text-slate-400 hover:text-slate-200'}`}
             >
@@ -194,7 +202,8 @@ export default function LoginScreen() {
           </p>
           <div className="space-y-2">
             <button
-              onClick={() => fillDemo('alex@fitforge.app')}
+              type="button"
+              onClick={(e) => fillDemo(e, 'alex@fitforge.app')}
               className="w-full flex items-center gap-3 p-2.5 bg-slate-800/50 hover:bg-slate-700/50 rounded-xl transition-all text-left"
             >
               <div className="w-8 h-8 bg-teal-500/20 rounded-lg flex items-center justify-center shrink-0">
@@ -207,7 +216,8 @@ export default function LoginScreen() {
               <ArrowRight size={14} className="text-slate-600" />
             </button>
             <button
-              onClick={() => fillDemo('marcus@fitforge.app')}
+              type="button"
+              onClick={(e) => fillDemo(e, 'marcus@fitforge.app')}
               className="w-full flex items-center gap-3 p-2.5 bg-slate-800/50 hover:bg-slate-700/50 rounded-xl transition-all text-left"
             >
               <div className="w-8 h-8 bg-blue-500/20 rounded-lg flex items-center justify-center shrink-0">

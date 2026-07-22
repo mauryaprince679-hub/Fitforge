@@ -1,0 +1,16 @@
+{
+  "name": "fitforge-razorpay-server",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.0",
+    "dotenv": "^16.4.1",
+    "express": "^4.21.0",
+    "mongoose": "^8.0.1",
+    "razorpay": "^2.1.0"
+  }
+}

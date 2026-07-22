@@ -1,0 +1,82 @@
+[
+  {
+    "id": "veg-fat-loss-indian",
+    "title": "Balanced Veg Fat Loss",
+    "dietType": "veg",
+    "fitnessGoal": "fat_loss",
+    "cuisineType": "indian",
+    "meals": {
+      "breakfast": "Greek yogurt bowl with berries and chia",
+      "lunch": "Moong dal salad with roasted vegetables",
+      "snacks": "Cucumber slices with hummus",
+      "dinner": "Paneer stir-fry with broccoli"
+    },
+    "macros": {
+      "calories": 1820,
+      "protein": 92,
+      "carbs": 165,
+      "fats": 62
+    },
+    "notes": "Protein-forward and light on refined carbs."
+  },
+  {
+    "id": "non-veg-muscle-gain-continental",
+    "title": "High-Protein Muscle Gain",
+    "dietType": "non_veg",
+    "fitnessGoal": "muscle_gain",
+    "cuisineType": "continental",
+    "meals": {
+      "breakfast": "Egg scramble with oats and banana",
+      "lunch": "Chicken rice bowl with roasted vegetables",
+      "snacks": "Greek yogurt and almonds",
+      "dinner": "Salmon with sweet potato and green beans"
+    },
+    "macros": {
+      "calories": 2460,
+      "protein": 148,
+      "carbs": 220,
+      "fats": 78
+    },
+    "notes": "Higher calories to support recovery and growth."
+  },
+  {
+    "id": "vegan-muscle-gain-asian",
+    "title": "Plant-Powered Muscle Build",
+    "dietType": "vegan",
+    "fitnessGoal": "muscle_gain",
+    "cuisineType": "asian",
+    "meals": {
+      "breakfast": "Tofu scramble with avocado toast",
+      "lunch": "Tofu noodle bowl with edamame",
+      "snacks": "Protein smoothie with soy milk",
+      "dinner": "Jackfruit curry with brown rice"
+    },
+    "macros": {
+      "calories": 2240,
+      "protein": 124,
+      "carbs": 240,
+      "fats": 68
+    },
+    "notes": "Balanced plant-based macros with plenty of protein."
+  },
+  {
+    "id": "veg-fat-loss-mediterranean",
+    "title": "Mediterranean Veg Cut",
+    "dietType": "veg",
+    "fitnessGoal": "fat_loss",
+    "cuisineType": "mediterranean",
+    "meals": {
+      "breakfast": "Overnight oats with kiwi and walnuts",
+      "lunch": "Chickpea quinoa bowl with feta",
+      "snacks": "Apple slices with peanut butter",
+      "dinner": "Stuffed bell peppers with lentils"
+    },
+    "macros": {
+      "calories": 1760,
+      "protein": 84,
+      "carbs": 170,
+      "fats": 58
+    },
+    "notes": "Great for a lighter, high-fiber day."
+  }
+]

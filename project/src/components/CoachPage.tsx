@@ -17,7 +17,8 @@ import {
   Video, 
   Award,
   ShieldCheck,
-  Check
+  Check,
+  ArrowRight
 } from 'lucide-react';
 
 interface Review {
@@ -108,10 +109,17 @@ const TRAINERS_DATA: Trainer[] = [
 ];
 
 interface Props {
+  subscriptionTier?: 'free' | 'monthly' | 'quarterly' | 'annual';
+  onSubscribe?: (
+    tier: 'monthly' | 'quarterly' | 'annual',
+    subscriptionContext?: { coachName?: string; subscriptionType?: 'batch' | 'personal' }
+  ) => void;
   onNavigate?: (tab: string) => void;
 }
 
-export default function TrainerSubscriptionFlow({ onNavigate }: Props) {
+export default function TrainerSubscriptionFlow({ subscriptionTier, onSubscribe, onNavigate }: Props) {
+  void subscriptionTier;
+  void onSubscribe;
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTrainer, setSelectedTrainer] = useState<Trainer | null>(null);
   const [planType, setPlanType] = useState<'batch' | '1on1'>('1on1');
@@ -299,7 +307,7 @@ export default function TrainerSubscriptionFlow({ onNavigate }: Props) {
             </button>
 
             {/* Scrollable Content Container */}
-            <div className="overflow-y-auto flex-1 p-4 space-y-5">
+            <div className="flex-1 overflow-y-auto p-4 pb-36 space-y-5">
               
               {/* Media Image Header */}
               <div className="relative h-52 rounded-2xl overflow-hidden bg-slate-800 -mx-4 -mt-4 mb-2">
@@ -423,56 +431,55 @@ export default function TrainerSubscriptionFlow({ onNavigate }: Props) {
             </div>
 
             {/* Bottom Checkout Actions Bar */}
-            <div className="p-4 border-t border-slate-800 bg-slate-900 flex items-center gap-3">
-              {/* Duration / Months Counter */}
-              <div className="flex items-center justify-between border border-emerald-500/40 rounded-xl bg-emerald-950/20 px-2 py-2.5 min-w-[90px]">
-                <button 
-                  onClick={() => setMonths((m) => Math.max(1, m - 1))}
-                  className="text-emerald-400 hover:text-white p-0.5"
-                >
-                  <Minus className="w-3.5 h-3.5" />
-                </button>
-                <span className="text-xs font-extrabold text-white">{months} mo</span>
-                <button 
-                  onClick={() => setMonths((m) => m + 1)}
-                  className="text-emerald-400 hover:text-white p-0.5"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                </button>
-              </div>
+            {(() => {
+              const pricePerMonth = planType === '1on1' ? selectedTrainer.oneOnOnePrice : selectedTrainer.batchPrice;
+              const totalPrice = pricePerMonth * months;
+              const planLabel = planType === '1on1'
+                ? `Proceed to Pay • ₹${pricePerMonth}/mo`
+                : `Join Batch • ₹${pricePerMonth}/mo`;
 
-              {/* Buy Subscription CTA Button */}
-              {(() => {
-                const pricePerMonth = planType === '1on1' ? selectedTrainer.oneOnOnePrice : selectedTrainer.batchPrice;
-                const totalPrice = pricePerMonth * months;
-                const totalOriginal = selectedTrainer.originalPrice * months;
+              return (
+                <div className="fixed inset-x-0 bottom-16 z-50 border-t border-slate-800 bg-slate-900/90 px-4 py-3 backdrop-blur-md">
+                  <div className="mx-auto flex w-full max-w-md items-center gap-3">
+                    {/* Duration / Months Counter */}
+                    <div className="flex min-w-[90px] items-center justify-between rounded-xl border border-emerald-500/40 bg-emerald-950/20 px-2 py-2.5">
+                      <button 
+                        onClick={() => setMonths((m) => Math.max(1, m - 1))}
+                        className="p-0.5 text-emerald-400 hover:text-white"
+                      >
+                        <Minus className="h-3.5 w-3.5" />
+                      </button>
+                      <span className="text-xs font-extrabold text-white">{months} mo</span>
+                      <button 
+                        onClick={() => setMonths((m) => m + 1)}
+                        className="p-0.5 text-emerald-400 hover:text-white"
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
 
-                return (
-                  <button 
-                    onClick={() => {
-                      alert(`Subscribed to ${selectedTrainer.name} (${planType.toUpperCase()}) for ${months} month(s) at ₹${totalPrice}!`);
-                      setSelectedTrainer(null);
-                    }}
-                    className="flex-1 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs py-3 px-4 rounded-xl flex items-center justify-between transition-colors shadow-lg shadow-emerald-500/20 active:scale-[0.99]"
-                  >
-                    <span>Subscribe Now</span>
-                    <span>
-                      <span className="line-through text-slate-800 mr-1 text-[11px]">
-                        ₹{totalOriginal}
-                      </span>
-                      ₹{totalPrice}
-                    </span>
-                  </button>
-                );
-              })()}
-            </div>
+                    {/* Buy Subscription CTA Button */}
+                    <button 
+                      onClick={() => {
+                        alert(`Subscribed to ${selectedTrainer.name} (${planType.toUpperCase()}) for ${months} month(s) at ₹${totalPrice}!`);
+                        setSelectedTrainer(null);
+                      }}
+                      className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-500 px-4 py-3 text-xs font-bold text-slate-950 transition-colors shadow-lg shadow-emerald-500/20 hover:bg-emerald-400 active:scale-[0.99]"
+                    >
+                      <span>{planLabel}</span>
+                      <ArrowRight className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         </div>
       )}
 
       {/* Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 z-30 bg-slate-900/90 backdrop-blur-lg border-t border-slate-800 px-2 py-2">
-        <div className="max-w-md mx-auto grid grid-cols-6 gap-1">
+      <nav className={`fixed bottom-0 left-0 right-0 z-[60] border-t border-slate-800 bg-slate-900/90 px-2 py-2 backdrop-blur-lg transition-transform duration-300 ${selectedTrainer ? 'translate-y-full' : 'translate-y-0'}`}>
+        <div className="mx-auto grid max-w-md grid-cols-6 gap-1">
           <button onClick={() => onNavigate?.('dashboard')} className="flex flex-col items-center gap-1 py-1 px-2 text-slate-400">
             <LayoutDashboard className="w-4 h-4" />
             <span className="text-[10px] font-medium">Dashboard</span>

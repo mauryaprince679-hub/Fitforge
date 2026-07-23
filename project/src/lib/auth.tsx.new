@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, useCallback, useRef, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase, isSupabaseConfigured, type Profile } from './supabase';
 import type { Role } from '../types';
@@ -113,7 +113,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     loading: true,
     error: null,
   });
-  const authRequestRef = useRef(0);
 
   const handleNetworkIssue = useCallback((reason?: unknown) => {
     const message = reason instanceof Error ? reason.message : 'Unknown connection issue';
@@ -144,17 +143,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } as Profile;
   }, []);
 
-  const upsertProfileIfSupported = useCallback(async (profile: Profile) => {
-    try {
-      const query = supabase.from('profiles');
-      const upsert = typeof query.upsert === 'function' ? query.upsert.bind(query) : null;
-      if (!upsert) return;
-      await upsert(profile);
-    } catch {
-      // ignore profile persistence errors; the app should continue with the fallback profile.
-    }
-  }, []);
-
   const fetchProfile = useCallback(async (userId: string, userEmail?: string, preferredRole: Role = 'client', preferredName?: string): Promise<Profile> => {
     if (!isSupabaseConfigured) {
       return createFallbackProfile(userId, userEmail, preferredRole, preferredName);
@@ -183,67 +171,53 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       console.warn('Profile missing or database query restricted. Using resilient profile fallback...');
       const fallback = createFallbackProfile(userId, userEmail, preferredRole, preferredName);
-      await upsertProfileIfSupported(fallback);
+      await supabase.from('profiles').upsert(fallback).catch(() => {});
       return fallback;
     } catch (err) {
       handleNetworkIssue(err);
       const fallback = createFallbackProfile(userId, userEmail, preferredRole, preferredName);
-      await upsertProfileIfSupported(fallback);
+      await supabase.from('profiles').upsert(fallback).catch(() => {});
       return fallback;
     }
-  }, [createFallbackProfile, handleNetworkIssue, upsertProfileIfSupported]);
+  }, [createFallbackProfile, handleNetworkIssue]);
 
   const refreshProfile = useCallback(async () => {
-    const requestId = ++authRequestRef.current;
     setState(prev => ({ ...prev, loading: true, error: null }));
 
     if (!isSupabaseConfigured) {
       const stored = readStoredAuthState();
-      if (authRequestRef.current === requestId) {
-        setState({ session: stored.session, profile: stored.profile, loading: false, error: null });
-      }
+      setState({ session: stored.session, profile: stored.profile, loading: false, error: null });
       return;
     }
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
-        if (authRequestRef.current === requestId) {
-          setState({ session: null, profile: null, loading: false, error: null });
-        }
+        setState({ session: null, profile: null, loading: false, error: null });
         return;
       }
       const profile = await fetchProfile(session.user.id, session.user.email);
-      if (authRequestRef.current === requestId) {
-        setState({ session, profile, loading: false, error: null });
-      }
+      setState({ session, profile, loading: false, error: null });
     } catch (error) {
-      if (authRequestRef.current === requestId) {
-        handleNetworkIssue(error);
-        setState(prev => ({ ...prev, loading: false }));
-      }
+      handleNetworkIssue(error);
+      setState(prev => ({ ...prev, loading: false }));
     }
   }, [fetchProfile, handleNetworkIssue]);
 
   useEffect(() => {
     let mounted = true;
 
-    const resolveAuthSession = async (session: Session | null, requestId: number) => {
+    const resolveAuthSession = async (session: Session | null) => {
       if (!session) {
-        if (mounted && authRequestRef.current === requestId) {
-          setState(prev => {
-            if (prev.session || prev.profile) {
-              return { ...prev, loading: false, error: null };
-            }
-            clearStoredAuthState();
-            return { session: null, profile: null, loading: false, error: null };
-          });
+        if (mounted) {
+          setState({ session: null, profile: null, loading: false, error: null });
+          clearStoredAuthState();
         }
         return;
       }
 
       const profile = await fetchProfile(session.user.id, session.user.email);
-      if (!mounted || authRequestRef.current !== requestId) return;
+      if (!mounted) return;
       persistStoredAuthState(session, profile);
       setState({ session, profile, loading: false, error: null });
     };
@@ -259,14 +233,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     (async () => {
-      const requestId = ++authRequestRef.current;
       setState(prev => ({ ...prev, loading: true, error: null }));
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!mounted) return;
-        await resolveAuthSession(session, requestId);
+        await resolveAuthSession(session);
       } catch (error) {
-        if (!mounted || authRequestRef.current !== requestId) return;
+        if (!mounted) return;
         handleNetworkIssue(error);
         setState(prev => ({ ...prev, loading: false }));
       }
@@ -274,12 +247,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event: string, session: Session | null) => {
       (async () => {
-        const requestId = ++authRequestRef.current;
         setState(prev => ({ ...prev, loading: true, error: null }));
         try {
-          await resolveAuthSession(session, requestId);
+          await resolveAuthSession(session);
         } catch (error) {
-          if (authRequestRef.current !== requestId) return;
           handleNetworkIssue(error);
           setState(prev => ({ ...prev, loading: false }));
         }
@@ -293,7 +264,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [fetchProfile, handleNetworkIssue]);
 
   const signIn = useCallback(async (email: string, password: string): Promise<{ error: string | null }> => {
-    const requestId = ++authRequestRef.current;
     setState(prev => ({ ...prev, loading: true, error: null }));
 
     if (!isSupabaseConfigured) {
@@ -302,18 +272,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const account = accounts[normalizedEmail];
 
       if (!account || account.password !== password) {
-        if (authRequestRef.current === requestId) {
-          setState(prev => ({ ...prev, loading: false, error: 'Invalid email or password. Try the demo accounts or create a new account.' }));
-        }
+        setState(prev => ({ ...prev, loading: false, error: 'Invalid email or password. Try the demo accounts or create a new account.' }));
         return { error: 'Invalid email or password. Try the demo accounts or create a new account.' };
       }
 
       const profile = createFallbackProfile(account.id, account.email, account.role, account.name);
       const session = createLocalSession(account.id, account.email, account.role);
       persistStoredAuthState(session, profile);
-      if (authRequestRef.current === requestId) {
-        setState({ session, profile, loading: false, error: null });
-      }
+      setState({ session, profile, loading: false, error: null });
       return { error: null };
     }
 
@@ -321,30 +287,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
       if (error) {
-        if (authRequestRef.current === requestId) {
-          setState(prev => ({ ...prev, loading: false, error: error.message }));
-        }
+        setState(prev => ({ ...prev, loading: false, error: error.message }));
         return { error: error.message };
       }
 
       if (data.session) {
         const profile = await fetchProfile(data.session.user.id, data.session.user.email);
-        if (authRequestRef.current === requestId) {
-          setState({ session: data.session, profile, loading: false, error: null });
-        }
-      } else if (authRequestRef.current === requestId) {
+        setState({ session: data.session, profile, loading: false, error: null });
+      } else {
         setState(prev => ({ ...prev, loading: false, error: null }));
       }
 
       return { error: null };
     } catch (error) {
-      if (authRequestRef.current === requestId) {
-        handleNetworkIssue(error);
-        const errMsg = 'Connection Error: Please check your internet connection or database configuration.';
-        setState(prev => ({ ...prev, loading: false, error: errMsg }));
-        return { error: errMsg };
-      }
-      return { error: null };
+      handleNetworkIssue(error);
+      const errMsg = 'Connection Error: Please check your internet connection or database configuration.';
+      setState(prev => ({ ...prev, loading: false, error: errMsg }));
+      return { error: errMsg };
     }
   }, [createFallbackProfile, fetchProfile, handleNetworkIssue]);
 
@@ -354,7 +313,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     name: string,
     role: Role
   ): Promise<{ error: string | null }> => {
-    const requestId = ++authRequestRef.current;
     setState(prev => ({ ...prev, loading: true, error: null }));
 
     if (!isSupabaseConfigured) {
@@ -362,9 +320,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const accounts = readStoredAccounts();
 
       if (accounts[normalizedEmail]) {
-        if (authRequestRef.current === requestId) {
-          setState(prev => ({ ...prev, loading: false, error: 'An account already exists for this email.' }));
-        }
+        setState(prev => ({ ...prev, loading: false, error: 'An account already exists for this email.' }));
         return { error: 'An account already exists for this email.' };
       }
 
@@ -384,9 +340,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       persistStoredAccounts(nextAccounts);
       persistStoredAuthState(session, profile);
-      if (authRequestRef.current === requestId) {
-        setState({ session, profile, loading: false, error: null });
-      }
+      setState({ session, profile, loading: false, error: null });
       return { error: null };
     }
 
@@ -394,16 +348,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { data, error } = await supabase.auth.signUp({ email, password });
 
       if (error) {
-        if (authRequestRef.current === requestId) {
-          setState(prev => ({ ...prev, loading: false, error: error.message }));
-        }
+        setState(prev => ({ ...prev, loading: false, error: error.message }));
         return { error: error.message };
       }
 
       if (!data.session || !data.user) {
-        if (authRequestRef.current === requestId) {
-          setState(prev => ({ ...prev, loading: false, error: 'Please confirm your email before signing in.' }));
-        }
+        setState(prev => ({ ...prev, loading: false, error: 'Please confirm your email before signing in.' }));
         return { error: 'Please confirm your email before signing in.' };
       }
 
@@ -415,21 +365,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         created_at: new Date().toISOString(),
       } as Profile;
 
-      await upsertProfileIfSupported(newProfile);
+      await supabase.from('profiles').upsert(newProfile).catch(() => {});
 
       const profile = await fetchProfile(data.user.id, email, role, name);
-      if (authRequestRef.current === requestId) {
-        setState({ session: data.session, profile, loading: false, error: null });
-      }
+      setState({ session: data.session, profile, loading: false, error: null });
       return { error: null };
     } catch (error) {
-      if (authRequestRef.current === requestId) {
-        handleNetworkIssue(error);
-        const errMsg = 'Connection Error: Please check your internet connection or database configuration.';
-        setState(prev => ({ ...prev, loading: false, error: errMsg }));
-        return { error: errMsg };
-      }
-      return { error: null };
+      handleNetworkIssue(error);
+      const errMsg = 'Connection Error: Please check your internet connection or database configuration.';
+      setState(prev => ({ ...prev, loading: false, error: errMsg }));
+      return { error: errMsg };
     }
   }, [createFallbackProfile, fetchProfile, handleNetworkIssue]);
 

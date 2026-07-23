@@ -72,6 +72,23 @@ function LoadingScreen() {
   );
 }
 
+function createSessionFallbackProfile(session: Session | null): Profile | null {
+  if (!session?.user) return null;
+
+  const email = session.user.email || 'user@example.com';
+  const namePart = email.split('@')[0] || 'User';
+
+  return {
+    id: session.user.id,
+    email,
+    role: 'client',
+    name: namePart.charAt(0).toUpperCase() + namePart.slice(1),
+    avatar_url: null,
+    trainer_id: null,
+    created_at: new Date().toISOString(),
+  } as Profile;
+}
+
 export default function App() {
   const { session, profile, loading, signOut } = useAuth();
   const { isViewing, activeSession } = useLive();
@@ -93,23 +110,11 @@ export default function App() {
 
   const effectiveSession = session ?? (isDemoMode ? ({ user: { id: 'demo-trainer' } } as Session) : null);
 
-  // Guarantee effectiveProfile exists if effectiveSession is active
   const effectiveProfile = useMemo<Profile | null>(() => {
     if (profile) return profile;
     if (isDemoMode) return demoProfile;
-    if (session) {
-      const email = session.user.email || 'user@example.com';
-      const namePart = email.split('@')[0] || 'User';
-      return {
-        id: session.user.id,
-        email: email,
-        role: 'client',
-        name: namePart.charAt(0).toUpperCase() + namePart.slice(1),
-        created_at: new Date().toISOString(),
-      } as Profile;
-    }
-    return null;
-  }, [profile, isDemoMode, demoProfile, session]);
+    return createSessionFallbackProfile(effectiveSession);
+  }, [profile, isDemoMode, demoProfile, effectiveSession]);
 
   const [onboarded, setOnboarded] = useState(() => localStorage.getItem('fitforge_onboarded') === 'true');
   const [user, setUser] = useState<UserProfile>(MOCK_USER);
@@ -185,9 +190,23 @@ export default function App() {
   };
 
   const handleClientNavigate = (page: Page) => {
-    if (page === 'dashboard' || page === 'meal_plan' || page === 'meal_plan_results') {
+    if (page === 'dashboard') {
       setCurrentPage('dashboard');
       navigate('/', { replace: false });
+      setMobileNavOpen(false);
+      return;
+    }
+
+    if (page === 'meal_plan') {
+      setCurrentPage('meal_plan');
+      navigate('/meal-plan', { replace: false });
+      setMobileNavOpen(false);
+      return;
+    }
+
+    if (page === 'meal_plan_results') {
+      setCurrentPage('meal_plan_results');
+      navigate('/meal-plan/results', { replace: false });
       setMobileNavOpen(false);
       return;
     }
@@ -239,9 +258,12 @@ export default function App() {
     }
   }, [session, profile]);
 
-  if (loading) return <LoadingScreen />;
+  const isAuthPending = loading || (Boolean(session) && !profile && !isDemoMode);
+
+  if (isAuthPending) return <LoadingScreen />;
   if (showSplash && !effectiveSession) return <SplashScreen onFinish={() => setShowSplash(false)} />;
-  if (!effectiveSession || !effectiveProfile) return <LoginScreen />;
+  if (!effectiveSession) return <LoginScreen />;
+  if (!effectiveProfile) return <LoadingScreen />;
 
   if (effectiveProfile.role === 'client' && !onboarded) {
     return <Onboarding onComplete={handleOnboardingComplete} />;

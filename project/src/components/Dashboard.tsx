@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Flame, Dumbbell, TrendingUp, Calendar, ChevronRight, Trophy, Zap, Target, Clock, BarChart2, Play, Droplets, MessageCircle, Plus, Radio, Users, Info, X } from 'lucide-react';
+import { Flame, Dumbbell, TrendingUp, Calendar, ChevronRight, Trophy, Zap, Target, Clock, BarChart2, Play, Droplets, MessageCircle, Plus, Radio, Users, Info, X, Soup, ArrowRight } from 'lucide-react';
 import type { UserProfile, Page } from '../types';
 import { WORKOUT_HISTORY, WORKOUT_TEMPLATES, getTodaysAnalytics, getTodaysWorkout, DAILY_MOTIVATION, MOCK_USERS, CURRENT_TRAINER_ID } from '../data';
 import { useLive } from '../lib/live';
+import { loadStoredPlan } from '../lib/mealPlans';
 import OnboardingTour from './OnboardingTour';
-import ClientDietPlanCard from './ClientDietPlanCard';
 import { ThemeToggle } from './ThemeToggle';
 
 interface DashboardProps {
@@ -122,6 +122,16 @@ export default function Dashboard({ user, onNavigate, onTourStateChange }: Dashb
   const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
   const [isTourOpen, setIsTourOpen] = useState(false);
   const [selectedRecording, setSelectedRecording] = useState<Recording | null>(null);
+  const [nutritionSnapshot, setNutritionSnapshot] = useState(() => {
+    const activePlan = loadStoredPlan();
+    return {
+      calories: activePlan?.targetCalories ?? 1860,
+      protein: activePlan?.targetMacros?.protein ?? 118,
+      carbs: activePlan?.targetMacros?.carbs ?? 172,
+      fats: activePlan?.targetMacros?.fats ?? 58,
+      tag: activePlan?.days?.[0]?.dietaryTag ?? 'High Protein',
+    };
+  });
   const analytics = getTodaysAnalytics('u_client_1');
   const todaysWorkout = getTodaysWorkout('u_client_1');
   const nextWorkout = WORKOUT_TEMPLATES[0];
@@ -138,6 +148,23 @@ export default function Dashboard({ user, onNavigate, onTourStateChange }: Dashb
       onTourStateChange(true);
     }
   }, [onTourStateChange]);
+
+  useEffect(() => {
+    const syncNutrition = () => {
+      const activePlan = loadStoredPlan();
+      setNutritionSnapshot({
+        calories: activePlan?.targetCalories ?? 1860,
+        protein: activePlan?.targetMacros?.protein ?? 118,
+        carbs: activePlan?.targetMacros?.carbs ?? 172,
+        fats: activePlan?.targetMacros?.fats ?? 58,
+        tag: activePlan?.days?.[0]?.dietaryTag ?? 'High Protein',
+      });
+    };
+
+    syncNutrition();
+    window.addEventListener('fitforge:meal-plan-updated', syncNutrition);
+    return () => window.removeEventListener('fitforge:meal-plan-updated', syncNutrition);
+  }, []);
 
   const toggleTooltip = (key: string) => {
     setActiveTooltip(current => current === key ? null : key);
@@ -285,7 +312,47 @@ export default function Dashboard({ user, onNavigate, onTourStateChange }: Dashb
         </div>
       </div>
 
-      <ClientDietPlanCard />
+      <div className="rounded-[1.4rem] border border-slate-200 bg-white p-5 shadow-sm transition-colors duration-300 dark:border-emerald-500/20 dark:bg-[#131b2e]">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-emerald-600 dark:text-emerald-400">
+              <Soup size={14} /> Nutrition Snapshot
+            </div>
+            <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Today’s Macro Ring</h2>
+            <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">A concise view of your nutrition targets with a quick path into the full plan.</p>
+          </div>
+          <div className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-500">
+            {nutritionSnapshot.tag}
+          </div>
+        </div>
+
+        <div className="mt-4 grid gap-3 sm:grid-cols-4">
+          {[
+            { label: 'Calories', value: `${nutritionSnapshot.calories.toLocaleString()}`, unit: 'kcal', tone: 'text-emerald-500' },
+            { label: 'Protein', value: `${nutritionSnapshot.protein}g`, unit: 'goal', tone: 'text-emerald-500' },
+            { label: 'Carbs', value: `${nutritionSnapshot.carbs}g`, unit: 'goal', tone: 'text-amber-400' },
+            { label: 'Fats', value: `${nutritionSnapshot.fats}g`, unit: 'goal', tone: 'text-sky-400' },
+          ].map((item) => (
+            <div key={item.label} className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3 dark:border-slate-800 dark:bg-slate-900/70">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500 dark:text-slate-400">{item.label}</p>
+              <p className={`mt-2 text-lg font-bold ${item.tone}`}>{item.value}</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">{item.unit}</p>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-900/70">
+          <div className="text-sm text-slate-600 dark:text-slate-400">You’ve matched 92% of today’s planned macros.</div>
+          <div className="flex flex-wrap gap-2">
+            <button onClick={() => onNavigate('meal_plan')} className="inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-3.5 py-2 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400">
+              Log Today’s Meals <ArrowRight size={15} />
+            </button>
+            <button onClick={() => onNavigate('meal_plan')} className="rounded-xl border border-slate-300 px-3.5 py-2 text-sm font-semibold text-slate-700 transition hover:border-emerald-500/40 hover:text-emerald-500 dark:border-slate-700 dark:text-slate-300">
+              View Full Nutrition Plan
+            </button>
+          </div>
+        </div>
+      </div>
 
       {/* Coach's Corner */}
       <div className="rounded-[1.4rem] border border-slate-200 bg-white p-5 shadow-sm transition-colors duration-300 dark:border-emerald-500/20 dark:bg-[#131b2e] dark:bg-gradient-to-br dark:from-emerald-500/10 dark:to-lime-600/5">

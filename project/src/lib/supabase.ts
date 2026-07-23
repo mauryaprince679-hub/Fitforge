@@ -35,6 +35,7 @@ function createFallbackSupabaseClient() {
     from: () => ({
       select: () => createQueryBuilder(),
       insert: async () => unsupportedResult,
+      upsert: async () => unsupportedResult,
     }),
     storage: {
       from: () => ({

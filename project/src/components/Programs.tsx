@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import type { Page } from '../types';
 import { 
   Search, 
   ArrowLeft, 
@@ -204,7 +205,7 @@ export const coachingCatalog: CatalogCard[] = [
 export const programs = [...batchCatalog, ...coachingCatalog];
 
 interface ProgramsProps {
-  onNavigate?: (page: string) => void;
+  onNavigate?: (page: Page | ((prevPage: Page) => Page)) => void;
 }
 
 export default function Programs({ onNavigate }: ProgramsProps) {

@@ -59,8 +59,6 @@ const TRAINER_PAGE_TITLES: Record<TrainerPage, string> = {
   inbox: 'Unified Inbox',
 };
 
-// route paths are handled by react-router; keep page title map above
-
 function LoadingScreen() {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 dark:bg-[#030712] dark:text-slate-100 flex items-center justify-center">
@@ -82,6 +80,7 @@ export default function App() {
 
   const demoDisabled = typeof window !== 'undefined' && localStorage.getItem('fitforge_demo_disabled') === 'true';
   const isDemoMode = !session && !profile && import.meta.env.DEV && !demoDisabled;
+
   const demoProfile = useMemo<Profile>(() => ({
     id: 'demo-trainer',
     email: 'marcus@fitforge.app',
@@ -91,8 +90,26 @@ export default function App() {
     trainer_id: null,
     created_at: new Date().toISOString(),
   }), []);
+
   const effectiveSession = session ?? (isDemoMode ? ({ user: { id: 'demo-trainer' } } as Session) : null);
-  const effectiveProfile = profile ?? (isDemoMode ? demoProfile : null);
+
+  // Guarantee effectiveProfile exists if effectiveSession is active
+  const effectiveProfile = useMemo<Profile | null>(() => {
+    if (profile) return profile;
+    if (isDemoMode) return demoProfile;
+    if (session) {
+      const email = session.user.email || 'user@example.com';
+      const namePart = email.split('@')[0] || 'User';
+      return {
+        id: session.user.id,
+        email: email,
+        role: 'client',
+        name: namePart.charAt(0).toUpperCase() + namePart.slice(1),
+        created_at: new Date().toISOString(),
+      } as Profile;
+    }
+    return null;
+  }, [profile, isDemoMode, demoProfile, session]);
 
   const [onboarded, setOnboarded] = useState(() => localStorage.getItem('fitforge_onboarded') === 'true');
   const [user, setUser] = useState<UserProfile>(MOCK_USER);
@@ -104,6 +121,7 @@ export default function App() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [isTourOpen, setIsTourOpen] = useState(false);
   const scrollContainerRef = useRef<HTMLElement | null>(null);
+
   const isExerciseLibraryRoute = /^\/programs\/[^/]+\/exercises(?:\/[^/]+)?$/.test(location.pathname);
   const isProgramDetailsRoute = /^\/programs\/[^/]+$/.test(location.pathname);
   const isTrainerDirectoryRoute = location.pathname === '/trainers';
@@ -124,9 +142,7 @@ export default function App() {
         return { ...prev, name: effectiveProfile.name, email: effectiveProfile.email };
       });
     }
-  }, [effectiveProfile?.name, effectiveProfile?.email]);
-
-  
+  }, [effectiveProfile]);
 
   useEffect(() => {
     if (!loading && !effectiveSession) {
@@ -205,7 +221,6 @@ export default function App() {
     localStorage.removeItem('fitforge_onboarded');
     localStorage.removeItem('fitforge_tour_seen');
     localStorage.removeItem('isFirstTimeUser');
-    // Prevent the DEV demo user from immediately returning after sign-out
     try {
       localStorage.setItem('fitforge_demo_disabled', 'true');
     } catch (e) {
@@ -214,7 +229,6 @@ export default function App() {
     await signOut();
   };
 
-  // If a real session/profile appears, re-enable demo mode for future sign-outs
   useEffect(() => {
     if (session || profile) {
       try {
@@ -234,69 +248,68 @@ export default function App() {
   }
 
   // ---- Client live viewer overlay ----
-  // When a client joins a live stream, render the immersive viewer room full-screen
   if (effectiveProfile.role === 'client' && isViewing && activeSession) {
     return <ClientViewerRoom />;
   }
 
-  const role = effectiveProfile.role;
+  const role = effectiveProfile.role || 'client';
   const isMessagesChatOpen = currentPage === 'messages' && clientMessengerActiveChat;
 
   // ============ TRAINER INTERFACE ============
   if (role === 'trainer' || role === 'admin') {
     const mainPaddingLeft = trainerCollapsed ? 'lg:pl-16' : 'lg:pl-60';
     return (
-        <ErrorBoundary>
+      <ErrorBoundary>
         <div className="min-h-screen bg-slate-50 text-slate-900 dark:bg-[#030712] dark:text-slate-100">
-        <div className="fixed top-0 right-0 z-[100] flex items-center gap-2 p-3">
-          <div className="flex items-center gap-2 rounded-[1.1rem] border border-emerald-500/20 bg-white/80 px-3 py-1.75 shadow-[0_0_30px_rgba(16,185,129,0.12)] backdrop-blur-xl dark:bg-[#030712]/90">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full border border-emerald-500/20 bg-emerald-500/10">
-              <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-emerald-500 to-lime-400 text-[11px] font-bold text-slate-950">
-                {effectiveProfile.name.split(' ').map(n => n[0]).join('')}
+          <div className="fixed top-0 right-0 z-[100] flex items-center gap-2 p-3">
+            <div className="flex items-center gap-2 rounded-[1.1rem] border border-emerald-500/20 bg-white/80 px-3 py-1.75 shadow-[0_0_30px_rgba(16,185,129,0.12)] backdrop-blur-xl dark:bg-[#030712]/90">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full border border-emerald-500/20 bg-emerald-500/10">
+                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-emerald-500 to-lime-400 text-[11px] font-bold text-slate-950">
+                  {effectiveProfile.name ? effectiveProfile.name.split(' ').map(n => n[0]).join('') : 'U'}
+                </div>
               </div>
+              <span className="hidden text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-300 sm:inline">{effectiveProfile.name}</span>
             </div>
-            <span className="hidden text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-300 sm:inline">{effectiveProfile.name}</span>
           </div>
-        </div>
 
-        <div className="hidden lg:block">
-          <TrainerSidebar
+          <div className="hidden lg:block">
+            <TrainerSidebar
+              currentPage={trainerPage}
+              onNavigate={setTrainerPage}
+              collapsed={trainerCollapsed}
+              onToggle={() => setTrainerCollapsed(c => !c)}
+              onSignOut={handleSignOut}
+            />
+          </div>
+          <TrainerMobileDrawerNav
             currentPage={trainerPage}
             onNavigate={setTrainerPage}
-            collapsed={trainerCollapsed}
-            onToggle={() => setTrainerCollapsed(c => !c)}
+            isOpen={trainerMobileNavOpen}
+            onClose={() => setTrainerMobileNavOpen(false)}
             onSignOut={handleSignOut}
           />
-        </div>
-        <TrainerMobileDrawerNav
-          currentPage={trainerPage}
-          onNavigate={setTrainerPage}
-          isOpen={trainerMobileNavOpen}
-          onClose={() => setTrainerMobileNavOpen(false)}
-          onSignOut={handleSignOut}
-        />
-        {!((trainerPage === 'inbox' && trainerInboxActiveChat)) && (
-          <TrainerMobileBottomNav
-            currentPage={trainerPage}
-            onNavigate={setTrainerPage}
+          {!((trainerPage === 'inbox' && trainerInboxActiveChat)) && (
+            <TrainerMobileBottomNav
+              currentPage={trainerPage}
+              onNavigate={setTrainerPage}
+            />
+          )}
+          <TrainerMobileHeader
+            onMenuOpen={() => setTrainerMobileNavOpen(true)}
+            title={TRAINER_PAGE_TITLES[trainerPage] ?? TRAINER_PAGE_TITLES['roster']}
           />
-        )}
-        <TrainerMobileHeader
-          onMenuOpen={() => setTrainerMobileNavOpen(true)}
-          title={TRAINER_PAGE_TITLES[trainerPage] ?? TRAINER_PAGE_TITLES['roster']}
-        />
-        <main className={`${mainPaddingLeft} min-h-screen bg-slate-50 dark:bg-[#030712] transition-all duration-300 ${trainerPage === 'inbox' && trainerInboxActiveChat ? 'overflow-hidden' : ''}`}>
-          <div className={`mx-auto max-w-6xl ${trainerPage === 'inbox' && trainerInboxActiveChat ? 'h-[100dvh] overflow-hidden px-0 py-0' : 'pt-20 lg:pt-0 px-4 md:px-6 lg:px-8 py-6 lg:py-8'}`}>
-            {trainerPage === 'roster' && <TrainerRoster />}
-            {trainerPage === 'program' && <TrainerProgramBuilder />}
-            {trainerPage === 'nutrition' && <TrainerDietManager />}
-            {trainerPage === 'studio' && <TrainerBroadcasterStudio />}
-            {trainerPage === 'formcheck' && <TrainerFormCheckDesk />}
-            {trainerPage === 'inbox' && <TrainerInbox onActiveChatChange={setTrainerInboxActiveChat} />}
-          </div>
-        </main>
-      </div>
-        </ErrorBoundary>
+          <main className={`${mainPaddingLeft} min-h-screen bg-slate-50 dark:bg-[#030712] transition-all duration-300 ${trainerPage === 'inbox' && trainerInboxActiveChat ? 'overflow-hidden' : ''}`}>
+            <div className={`mx-auto max-w-6xl ${trainerPage === 'inbox' && trainerInboxActiveChat ? 'h-[100dvh] overflow-hidden px-0 py-0' : 'pt-20 lg:pt-0 px-4 md:px-6 lg:px-8 py-6 lg:py-8'}`}>
+              {trainerPage === 'roster' && <TrainerRoster />}
+              {trainerPage === 'program' && <TrainerProgramBuilder />}
+              {trainerPage === 'nutrition' && <TrainerDietManager />}
+              {trainerPage === 'studio' && <TrainerBroadcasterStudio />}
+              {trainerPage === 'formcheck' && <TrainerFormCheckDesk />}
+              {trainerPage === 'inbox' && <TrainerInbox onActiveChatChange={setTrainerInboxActiveChat} />}
+            </div>
+          </main>
+        </div>
+      </ErrorBoundary>
     );
   }
 
@@ -308,7 +321,7 @@ export default function App() {
         <div className="flex items-center gap-2 rounded-[1.1rem] border border-emerald-500/20 bg-white/80 px-3 py-1.75 shadow-[0_0_30px_rgba(16,185,129,0.12)] backdrop-blur-xl dark:bg-[#030712]/90">
           <div className="flex h-8 w-8 items-center justify-center rounded-full border border-emerald-500/20 bg-emerald-500/10">
             <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-emerald-500 to-lime-400 text-[11px] font-bold text-slate-950">
-              {effectiveProfile.name.split(' ').map(n => n[0]).join('')}
+              {effectiveProfile.name ? effectiveProfile.name.split(' ').map(n => n[0]).join('') : 'U'}
             </div>
           </div>
           <span className="hidden text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-300 sm:inline">{effectiveProfile.name}</span>
@@ -362,66 +375,64 @@ export default function App() {
           ) : (
             <>
               {currentPage === 'dashboard' && (
-                    <Dashboard
-                      user={user}
-                      onNavigate={handleClientNavigate}
-                      onTourStateChange={setIsTourOpen}
-                    />
-                  )}
-                  {currentPage === 'workout' && (
-                    <WorkoutTracker />
-                  )}
-                  {currentPage === 'programs' && (
-                    <Programs onNavigate={setCurrentPage} />
-                  )}
-                  {currentPage === 'coach' && (
-                    <CoachPage
-                      subscriptionTier={user.subscriptionTier}
-                      onSubscribe={handleSubscribe}
-                    />
-                  )}
-                  {currentPage === 'live' && (
-                    activeSession ? (
-                      <ClientViewerRoom />
-                    ) : (
-                      <LivePage
-                        subscriptionTier={user.subscriptionTier}
-                        onNavigateToCoach={() => setCurrentPage('coach')}
-                      />
-                    )
-                  )}
-                  {currentPage === 'recordings' && (
-                    activeSession ? (
-                      <ClientViewerRoom />
-                    ) : (
-                      <LivePage
-                        subscriptionTier={user.subscriptionTier}
-                        onNavigateToCoach={() => setCurrentPage('coach')}
-                        showRecordingsOnly
-                      />
-                    )
-                  )}
-                  {currentPage === 'progress' && (
-                    <ProgressPage onNavigate={setCurrentPage} />
-                  )}
-                  {currentPage === 'messages' && (
-                    <ClientMessenger
-                      user={user}
-                      onUpgrade={() => handleSubscribe('monthly')}
-                      onActiveChatChange={setClientMessengerActiveChat}
-                    />
-                  )}
-                  {currentPage === 'profile' && (
-                    <ProfilePage
-                      user={user}
-                      onSubscriptionChange={handleSubscriptionChange}
-                      onProfileUpdate={handleProfileUpdate}
-                    />
-                  )}
-                </>
-              )
-
-          }
+                <Dashboard
+                  user={user}
+                  onNavigate={handleClientNavigate}
+                  onTourStateChange={setIsTourOpen}
+                />
+              )}
+              {currentPage === 'workout' && (
+                <WorkoutTracker />
+              )}
+              {currentPage === 'programs' && (
+                <Programs onNavigate={setCurrentPage} />
+              )}
+              {currentPage === 'coach' && (
+                <CoachPage
+                  subscriptionTier={user.subscriptionTier}
+                  onSubscribe={handleSubscribe}
+                />
+              )}
+              {currentPage === 'live' && (
+                activeSession ? (
+                  <ClientViewerRoom />
+                ) : (
+                  <LivePage
+                    subscriptionTier={user.subscriptionTier}
+                    onNavigateToCoach={() => setCurrentPage('coach')}
+                  />
+                )
+              )}
+              {currentPage === 'recordings' && (
+                activeSession ? (
+                  <ClientViewerRoom />
+                ) : (
+                  <LivePage
+                    subscriptionTier={user.subscriptionTier}
+                    onNavigateToCoach={() => setCurrentPage('coach')}
+                    showRecordingsOnly
+                  />
+                )
+              )}
+              {currentPage === 'progress' && (
+                <ProgressPage onNavigate={setCurrentPage} />
+              )}
+              {currentPage === 'messages' && (
+                <ClientMessenger
+                  user={user}
+                  onUpgrade={() => handleSubscribe('monthly')}
+                  onActiveChatChange={setClientMessengerActiveChat}
+                />
+              )}
+              {currentPage === 'profile' && (
+                <ProfilePage
+                  user={user}
+                  onSubscriptionChange={handleSubscriptionChange}
+                  onProfileUpdate={handleProfileUpdate}
+                />
+              )}
+            </>
+          )}
         </div>
       </main>
       {!clientMessengerActiveChat && (

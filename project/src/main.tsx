@@ -4,7 +4,6 @@ import { BrowserRouter } from 'react-router-dom';
 import App from './App.tsx';
 import { AuthProvider } from './lib/auth.tsx';
 import { LiveProvider } from './lib/live.tsx';
-import { ThemeProvider } from './lib/theme.tsx';
 import './index.css';
 
 if ('serviceWorker' in navigator) {
@@ -28,13 +27,11 @@ if ('serviceWorker' in navigator) {
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <BrowserRouter>
-      <ThemeProvider>
-        <AuthProvider>
-          <LiveProvider>
-            <App />
-          </LiveProvider>
-        </AuthProvider>
-      </ThemeProvider>
+      <AuthProvider>
+        <LiveProvider>
+          <App />
+        </LiveProvider>
+      </AuthProvider>
     </BrowserRouter>
   </StrictMode>
 );

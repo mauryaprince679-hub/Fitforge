@@ -40,7 +40,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return false;
   }, []);
 
-  const fetchProfile = useCallback(async (userId: string): Promise<Profile | null> => {
+  const fetchProfile = useCallback(async (userId: string, userEmail?: string): Promise<Profile | null> => {
     try {
       const { data, error } = await supabase
         .from('profiles')
@@ -49,11 +49,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .maybeSingle();
 
       if (error) {
-        if (handleNetworkIssue(error.message)) {
-          return null;
-        }
+        if (handleNetworkIssue(error.message)) return null;
         console.error('Error fetching profile:', error.message);
         return null;
+      }
+
+      // Fallback Profile: If user exists in Auth but missing in database table 'profiles'
+      if (!data && userEmail) {
+        console.warn('Profile missing in DB. Generating fallback profile...');
+        const fallbackProfile: Partial<Profile> = {
+          id: userId,
+          email: userEmail,
+          role: 'client' as Role, // default fallback role
+          name: userEmail.split('@')[0] || 'User',
+        };
+
+        // Try inserting missing profile automatically
+        const { data: newProfile } = await supabase
+          .from('profiles')
+          .upsert(fallbackProfile)
+          .select()
+          .maybeSingle();
+
+        return (newProfile as Profile) || (fallbackProfile as Profile);
       }
 
       return data as Profile | null;
@@ -70,7 +88,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setState(prev => ({ ...prev, profile: null, session: null, loading: false }));
         return;
       }
-      const profile = await fetchProfile(session.user.id);
+      const profile = await fetchProfile(session.user.id, session.user.email);
       setState(prev => ({ ...prev, session, profile, loading: false }));
     } catch (error) {
       handleNetworkIssue(error);
@@ -91,7 +109,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return;
         }
 
-        const profile = await fetchProfile(session.user.id);
+        const profile = await fetchProfile(session.user.id, session.user.email);
         if (!mounted) return;
         setState({ session, profile, loading: false, error: null });
       } catch (error) {
@@ -100,7 +118,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     })();
 
-    // Listen for auth changes — wrap async work to avoid deadlock
+    // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event: string, session: Session | null) => {
       (async () => {
         try {
@@ -108,7 +126,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setState({ session: null, profile: null, loading: false, error: null });
             return;
           }
-          const profile = await fetchProfile(session.user.id);
+          const profile = await fetchProfile(session.user.id, session.user.email);
           setState({ session, profile, loading: false, error: null });
         } catch (error) {
           handleNetworkIssue(error);
@@ -120,7 +138,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, [fetchProfile]);
+  }, [fetchProfile, handleNetworkIssue]);
 
   const signIn = useCallback(async (email: string, password: string): Promise<{ error: string | null }> => {
     setState(prev => ({ ...prev, loading: true, error: null }));
@@ -131,13 +149,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { error: error.message };
       }
       if (data.session) {
-        const profile = await fetchProfile(data.session.user.id);
+        const profile = await fetchProfile(data.session.user.id, data.session.user.email);
         setState({ session: data.session, profile, loading: false, error: null });
       }
       return { error: null };
     } catch (error) {
       handleNetworkIssue(error);
-      return { error: 'Connection Error: Please check your internet connection or database configuration.' };
+      const errMsg = 'Connection Error: Please check your internet connection or database configuration.';
+      setState(prev => ({ ...prev, loading: false, error: errMsg }));
+      return { error: errMsg };
     }
   }, [fetchProfile, handleNetworkIssue]);
 
@@ -162,7 +182,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Insert profile row with chosen role
       const { error: profileError } = await supabase
         .from('profiles')
-        .insert({
+        .upsert({
           id: data.user.id,
           email,
           role,
@@ -170,16 +190,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
 
       if (profileError) {
-        setState(prev => ({ ...prev, loading: false, error: profileError.message }));
-        return { error: profileError.message };
+        console.error('Error creating profile row:', profileError.message);
       }
 
-      const profile = await fetchProfile(data.user.id);
+      const profile = await fetchProfile(data.user.id, email);
       setState({ session: data.session, profile, loading: false, error: null });
       return { error: null };
     } catch (error) {
       handleNetworkIssue(error);
-      return { error: 'Connection Error: Please check your internet connection or database configuration.' };
+      const errMsg = 'Connection Error: Please check your internet connection or database configuration.';
+      setState(prev => ({ ...prev, loading: false, error: errMsg }));
+      return { error: errMsg };
     }
   }, [fetchProfile, handleNetworkIssue]);
 

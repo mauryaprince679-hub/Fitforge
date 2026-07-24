@@ -3,8 +3,6 @@ import {
   Search, 
   Sparkles, 
   TrendingUp, 
-  Clock, 
-  CheckCircle, 
   X, 
   Plus, 
   Minus, 
@@ -122,12 +120,11 @@ export default function TrainerSubscriptionFlow({ subscriptionTier, onSubscribe,
   void onSubscribe;
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTrainer, setSelectedTrainer] = useState<Trainer | null>(null);
-  const [planType, setPlanType] = useState<'batch' | '1on1'>('1on1');
+  const [planType, setPlanType] = useState<'batch' | '1on1'>('batch');
   const [months, setMonths] = useState(1);
   const [specialNote, setSpecialNote] = useState('');
   const [bookmarked, setBookmarked] = useState<Record<string, boolean>>({});
 
-  // Close modal on escape key press
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setSelectedTrainer(null);
@@ -136,7 +133,7 @@ export default function TrainerSubscriptionFlow({ subscriptionTier, onSubscribe,
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  const openSubscriptionModal = (trainer: Trainer, initialPlan: 'batch' | '1on1' = '1on1') => {
+  const openSubscriptionModal = (trainer: Trainer, initialPlan: 'batch' | '1on1' = 'batch') => {
     setSelectedTrainer(trainer);
     setPlanType(initialPlan);
     setMonths(1);
@@ -155,8 +152,8 @@ export default function TrainerSubscriptionFlow({ subscriptionTier, onSubscribe,
   );
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans pb-24">
-      {/* SCREEN 1: TRAINER DIRECTORY (Image 2 UI Style) */}
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans pb-32 relative">
+      {/* HEADER */}
       <header className="px-4 py-3 bg-slate-950/90 border-b border-slate-900 sticky top-0 z-20 backdrop-blur-md">
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 rounded-full bg-emerald-400" />
@@ -164,8 +161,8 @@ export default function TrainerSubscriptionFlow({ subscriptionTier, onSubscribe,
         </div>
       </header>
 
+      {/* MAIN CONTENT (IMAGE 2 DIRECTORY UI) */}
       <main className="flex-1 px-4 py-4 max-w-md mx-auto w-full space-y-6">
-        {/* Banner Highlights */}
         <div className="space-y-3">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-bold uppercase tracking-wider">
             <Sparkles className="w-3.5 h-3.5" />
@@ -185,7 +182,6 @@ export default function TrainerSubscriptionFlow({ subscriptionTier, onSubscribe,
             <span>Limited offer till <strong className="text-white">26th July</strong></span>
           </div>
 
-          {/* Stats Bar */}
           <div className="grid grid-cols-3 gap-2 pt-1">
             <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-2.5 text-center">
               <p className="text-[9px] font-bold text-slate-400 uppercase">AVG. RESULTS</p>
@@ -202,7 +198,6 @@ export default function TrainerSubscriptionFlow({ subscriptionTier, onSubscribe,
           </div>
         </div>
 
-        {/* Directory List Title & Search */}
         <section className="space-y-4 pt-2">
           <div className="flex items-center justify-between">
             <div>
@@ -222,15 +217,13 @@ export default function TrainerSubscriptionFlow({ subscriptionTier, onSubscribe,
             />
           </div>
 
-          {/* Trainer Cards (Image 2 UI Style) */}
           <div className="space-y-4">
             {filteredTrainers.map((trainer) => (
               <div 
                 key={trainer.id}
-                onClick={() => openSubscriptionModal(trainer, '1on1')}
+                onClick={() => openSubscriptionModal(trainer, 'batch')}
                 className="bg-slate-900/70 border border-slate-800/90 rounded-2xl p-4 space-y-3.5 shadow-md hover:border-emerald-500/40 cursor-pointer transition-all group"
               >
-                {/* Header info */}
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className={`w-10 h-10 rounded-xl ${trainer.avatarBg} text-slate-950 font-black flex items-center justify-center text-sm shadow-md`}>
@@ -252,7 +245,6 @@ export default function TrainerSubscriptionFlow({ subscriptionTier, onSubscribe,
                   {trainer.description}
                 </p>
 
-                {/* Tags */}
                 <div className="flex flex-wrap gap-1.5">
                   {trainer.tags.map((tag) => (
                     <span key={tag} className="text-[10px] text-slate-300 bg-slate-800/80 border border-slate-700/60 px-2.5 py-0.5 rounded-full">
@@ -261,7 +253,6 @@ export default function TrainerSubscriptionFlow({ subscriptionTier, onSubscribe,
                   ))}
                 </div>
 
-                {/* Direct Action Buttons */}
                 <div className="grid grid-cols-2 gap-2 pt-1">
                   <button 
                     onClick={(e) => {
@@ -288,17 +279,16 @@ export default function TrainerSubscriptionFlow({ subscriptionTier, onSubscribe,
         </section>
       </main>
 
-      {/* SCREEN 2: POP-UP MODAL SHEET (Image 1 UI Style) */}
+      {/* MODAL SHEET (IMAGE 1 UI STYLE) */}
       {selectedTrainer && (
         <div 
-          className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex flex-col justify-end sm:justify-center items-center p-0 sm:p-4"
+          className="fixed inset-0 z-40 bg-slate-950/80 backdrop-blur-md flex flex-col justify-end items-center"
           onClick={() => setSelectedTrainer(null)}
         >
           <div 
-            className="bg-slate-900 border border-slate-800 rounded-t-3xl sm:rounded-2xl max-w-md w-full overflow-hidden shadow-2xl relative max-h-[92vh] flex flex-col animate-in slide-in-from-bottom duration-200"
+            className="bg-slate-900 border-t border-x border-slate-800 rounded-t-3xl max-w-md w-full overflow-hidden shadow-2xl relative max-h-[82vh] flex flex-col mb-14"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Top Close Button (Exact Image 1 Style) */}
             <button 
               onClick={() => setSelectedTrainer(null)}
               className="absolute top-3 right-3 z-30 bg-slate-950/80 hover:bg-slate-950 text-white p-2 rounded-full border border-slate-800 backdrop-blur-md transition-colors"
@@ -306,10 +296,7 @@ export default function TrainerSubscriptionFlow({ subscriptionTier, onSubscribe,
               <X className="w-4 h-4" />
             </button>
 
-            {/* Scrollable Content Container */}
-            <div className="flex-1 overflow-y-auto p-4 pb-36 space-y-5">
-              
-              {/* Media Image Header */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-5 pb-24">
               <div className="relative h-52 rounded-2xl overflow-hidden bg-slate-800 -mx-4 -mt-4 mb-2">
                 <img src={selectedTrainer.image} alt={selectedTrainer.name} className="w-full h-full object-cover" />
                 <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/30 to-transparent" />
@@ -330,7 +317,6 @@ export default function TrainerSubscriptionFlow({ subscriptionTier, onSubscribe,
                 </div>
               </div>
 
-              {/* Bio & Details */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -338,7 +324,6 @@ export default function TrainerSubscriptionFlow({ subscriptionTier, onSubscribe,
                     <span className="text-xs font-bold text-emerald-400">Certified FitForge Coach</span>
                   </div>
 
-                  {/* Bookmark & Share Icons */}
                   <div className="flex items-center gap-2">
                     <button 
                       onClick={(e) => toggleBookmark(selectedTrainer.id, e)}
@@ -357,7 +342,6 @@ export default function TrainerSubscriptionFlow({ subscriptionTier, onSubscribe,
                 </p>
               </div>
 
-              {/* Subscription Option Switcher */}
               <div className="space-y-2">
                 <label className="text-xs font-bold text-slate-200 block">Select Coaching Tier</label>
                 <div className="grid grid-cols-2 gap-2">
@@ -389,7 +373,6 @@ export default function TrainerSubscriptionFlow({ subscriptionTier, onSubscribe,
                 </div>
               </div>
 
-              {/* Special Note Request Input (Matching Food App Custom Request) */}
               <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-3 space-y-2">
                 <label className="text-xs font-bold text-slate-200 block">
                   Add custom fitness goal / injury note (optional)
@@ -406,7 +389,6 @@ export default function TrainerSubscriptionFlow({ subscriptionTier, onSubscribe,
                 />
               </div>
 
-              {/* Reviews Section */}
               <div className="space-y-3 pt-1">
                 <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center justify-between">
                   <span>Client Reviews</span>
@@ -430,19 +412,18 @@ export default function TrainerSubscriptionFlow({ subscriptionTier, onSubscribe,
               </div>
             </div>
 
-            {/* Bottom Checkout Actions Bar */}
+            {/* FLOATING ACTION BAR (IMAGE 1 OVERLAY BAR ABOVE NAVBAR) */}
             {(() => {
               const pricePerMonth = planType === '1on1' ? selectedTrainer.oneOnOnePrice : selectedTrainer.batchPrice;
               const totalPrice = pricePerMonth * months;
               const planLabel = planType === '1on1'
-                ? `Proceed to Pay • ₹${pricePerMonth}/mo`
-                : `Join Batch • ₹${pricePerMonth}/mo`;
+                ? `Proceed to Pay • ₹${totalPrice}`
+                : `Join Batch • ₹${totalPrice}`;
 
               return (
-                <div className="fixed inset-x-0 bottom-16 z-50 border-t border-slate-800 bg-slate-900/90 px-4 py-3 backdrop-blur-md">
-                  <div className="mx-auto flex w-full max-w-md items-center gap-3">
-                    {/* Duration / Months Counter */}
-                    <div className="flex min-w-[90px] items-center justify-between rounded-xl border border-emerald-500/40 bg-emerald-950/20 px-2 py-2.5">
+                <div className="absolute bottom-0 inset-x-0 border-t border-slate-800 bg-slate-950/95 p-3 backdrop-blur-md z-30">
+                  <div className="flex items-center gap-2">
+                    <div className="flex min-w-[85px] items-center justify-between rounded-xl border border-emerald-500/40 bg-slate-900 px-2 py-2">
                       <button 
                         onClick={() => setMonths((m) => Math.max(1, m - 1))}
                         className="p-0.5 text-emerald-400 hover:text-white"
@@ -458,13 +439,12 @@ export default function TrainerSubscriptionFlow({ subscriptionTier, onSubscribe,
                       </button>
                     </div>
 
-                    {/* Buy Subscription CTA Button */}
                     <button 
                       onClick={() => {
                         alert(`Subscribed to ${selectedTrainer.name} (${planType.toUpperCase()}) for ${months} month(s) at ₹${totalPrice}!`);
                         setSelectedTrainer(null);
                       }}
-                      className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-500 px-4 py-3 text-xs font-bold text-slate-950 transition-colors shadow-lg shadow-emerald-500/20 hover:bg-emerald-400 active:scale-[0.99]"
+                      className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-400 px-4 py-2.5 text-xs font-bold text-slate-950 transition-colors shadow-lg shadow-emerald-500/20 hover:bg-emerald-300 active:scale-[0.99]"
                     >
                       <span>{planLabel}</span>
                       <ArrowRight className="h-4 w-4" />
@@ -477,37 +457,37 @@ export default function TrainerSubscriptionFlow({ subscriptionTier, onSubscribe,
         </div>
       )}
 
-      {/* Bottom Navigation */}
-      <nav className={`fixed bottom-0 left-0 right-0 z-[60] border-t border-slate-800 bg-slate-900/90 px-2 py-2 backdrop-blur-lg transition-transform duration-300 ${selectedTrainer ? 'translate-y-full' : 'translate-y-0'}`}>
+      {/* FIXED BOTTOM NAVIGATION BAR (IMAGE 2 UI STYLE) */}
+      <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-slate-800 bg-slate-900/95 px-2 py-2 backdrop-blur-lg">
         <div className="mx-auto grid max-w-md grid-cols-6 gap-1">
-          <button onClick={() => onNavigate?.('dashboard')} className="flex flex-col items-center gap-1 py-1 px-2 text-slate-400">
+          <button onClick={() => onNavigate?.('dashboard')} className="flex flex-col items-center gap-1 py-1 px-2 text-slate-400 hover:text-slate-200">
             <LayoutDashboard className="w-4 h-4" />
             <span className="text-[10px] font-medium">Dashboard</span>
           </button>
 
-          <button onClick={() => onNavigate?.('programs')} className="flex flex-col items-center gap-1 py-1 px-2 text-slate-400">
+          <button onClick={() => onNavigate?.('programs')} className="flex flex-col items-center gap-1 py-1 px-2 text-slate-400 hover:text-slate-200">
             <Dumbbell className="w-4 h-4" />
             <span className="text-[10px] font-medium">Programs</span>
           </button>
 
-          <button onClick={() => onNavigate?.('recorded')} className="flex flex-col items-center gap-1 py-1 px-2 text-slate-400">
+          <button onClick={() => onNavigate?.('recorded')} className="flex flex-col items-center gap-1 py-1 px-2 text-slate-400 hover:text-slate-200">
             <Video className="w-4 h-4" />
             <span className="text-[10px] font-medium">Recorded</span>
           </button>
 
-          <button onClick={() => onNavigate?.('progress')} className="flex flex-col items-center gap-1 py-1 px-2 text-slate-400">
+          <button onClick={() => onNavigate?.('progress')} className="flex flex-col items-center gap-1 py-1 px-2 text-slate-400 hover:text-slate-200">
             <TrendingUp className="w-4 h-4" />
             <span className="text-[10px] font-medium">Progress</span>
           </button>
 
-          <button onClick={() => onNavigate?.('messages')} className="flex flex-col items-center gap-1 py-1 px-2 text-slate-400">
+          <button onClick={() => onNavigate?.('messages')} className="flex flex-col items-center gap-1 py-1 px-2 text-slate-400 hover:text-slate-200">
             <MessageSquare className="w-4 h-4" />
             <span className="text-[10px] font-medium">Messages</span>
           </button>
 
           <button onClick={() => onNavigate?.('coach')} className="flex flex-col items-center gap-1 py-1 px-1 rounded-lg bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 shadow-sm">
             <Award className="w-4 h-4" />
-            <span className="text-[9px] font-bold tracking-tight">Coach Pro</span>
+            <span className="text-[9px] font-bold tracking-tight">Coach PRO</span>
           </button>
         </div>
       </nav>

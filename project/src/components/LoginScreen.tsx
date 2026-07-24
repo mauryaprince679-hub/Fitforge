@@ -17,7 +17,12 @@ export default function LoginScreen() {
     e.preventDefault();
     setError(null);
 
-    if (!email.trim() || !password.trim()) {
+    // Read directly from form elements in case browser autofill didn't trigger React onChange
+    const form = e.currentTarget as HTMLFormElement;
+    const emailInput = (form.elements.namedItem('email') as HTMLInputElement)?.value || email;
+    const passwordInput = (form.elements.namedItem('password') as HTMLInputElement)?.value || password;
+
+    if (!emailInput.trim() || !passwordInput.trim()) {
       setError('Please enter your email and password.');
       return;
     }
@@ -25,7 +30,7 @@ export default function LoginScreen() {
       setError('Please enter your name.');
       return;
     }
-    if (password.length < 6) {
+    if (passwordInput.length < 6) {
       setError('Password must be at least 6 characters.');
       return;
     }
@@ -33,11 +38,11 @@ export default function LoginScreen() {
     setLoading(true);
     try {
       if (mode === 'login') {
-        const { error: err } = await signIn(email.trim(), password);
-        if (err) setError(err);
+        const { error: err } = await signIn(emailInput.trim(), passwordInput);
+        if (err) setError(typeof err === 'string' ? err : err.message || 'Invalid credentials');
       } else {
-        const { error: err } = await signUp(email.trim(), password, name.trim(), role);
-        if (err) setError(err);
+        const { error: err } = await signUp(emailInput.trim(), passwordInput, name.trim(), role);
+        if (err) setError(typeof err === 'string' ? err : err.message || 'Signup failed');
       }
     } catch (err: any) {
       setError(err?.message || 'An unexpected error occurred.');
@@ -94,7 +99,7 @@ export default function LoginScreen() {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4" autoComplete="off">
             {mode === 'signup' && (
               <div>
                 <label className="block text-xs font-medium text-slate-400 mb-1.5">Full Name</label>
@@ -102,11 +107,13 @@ export default function LoginScreen() {
                   <User size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
                   <input
                     type="text"
+                    name="name"
                     value={name}
                     onChange={e => setName(e.target.value)}
                     placeholder="Alex Rivera"
                     className="input-field w-full pl-9"
                     disabled={loading}
+                    autoComplete="off"
                   />
                 </div>
               </div>
@@ -118,12 +125,13 @@ export default function LoginScreen() {
                 <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
                 <input
                   type="email"
+                  name="email"
                   value={email}
                   onChange={e => setEmail(e.target.value)}
                   placeholder="you@example.com"
                   className="input-field w-full pl-9"
                   disabled={loading}
-                  autoComplete="email"
+                  autoComplete="off"
                 />
               </div>
             </div>
@@ -134,12 +142,13 @@ export default function LoginScreen() {
                 <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
                 <input
                   type="password"
+                  name="password"
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                   placeholder="••••••••"
                   className="input-field w-full pl-9"
                   disabled={loading}
-                  autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+                  autoComplete="new-password"
                 />
               </div>
             </div>
